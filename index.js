@@ -1,7 +1,13 @@
 let currentCircuit = null;
 let animationId = null;
 let isAnimating = false;
-let raceCar = null;
+let raceVehicle = null;
+let vehicleType = 'f1'; // 'f1' atau 'motor'
+
+// Variabel untuk path tracking
+let trackPathElement = null;
+let totalTrackLength = 0;
+let currentDistance = 0;
 
 class CircuitGenerator {
     constructor(width, height) {
@@ -17,16 +23,14 @@ class CircuitGenerator {
     }
 
     generate() {
-        // Generate a closed loop circuit with minimal straights
-        const numPoints = 12 + Math.floor(Math.random() * 8); // 12-20 points
+        const numPoints = 12 + Math.floor(Math.random() * 8);
         const radius = Math.min(this.width, this.height) * 0.35;
         
         this.points = [];
         
-        // Create base polygon with variations
         for (let i = 0; i < numPoints; i++) {
             const angle = (i / numPoints) * Math.PI * 2;
-            const variance = 0.7 + Math.random() * 0.6; // 70% to 130% of radius
+            const variance = 0.7 + Math.random() * 0.6;
             const r = radius * variance;
             
             const x = this.centerX + Math.cos(angle) * r;
@@ -35,16 +39,9 @@ class CircuitGenerator {
             this.points.push({ x, y, angle });
         }
 
-        // Ensure the circuit closes properly
         this.points.push({ ...this.points[0] });
-
-        // Calculate segments and identify straights vs corners
         this.analyzeTrack();
-        
-        // Limit straight sections to ~10%
         this.optimizeStraights();
-        
-        // Generate smooth Bezier curves
         this.smoothTrack();
         
         return this;
@@ -60,7 +57,6 @@ class CircuitGenerator {
             const p2 = this.points[i + 1];
             const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
             
-            // Determine if straight (angle change < 15 degrees)
             let isStraight = false;
             if (i > 0) {
                 const prev = this.points[i - 1];
@@ -85,23 +81,19 @@ class CircuitGenerator {
     }
 
     optimizeStraights() {
-        // Target: only 10% straight
         const targetStraight = this.totalLength * 0.10;
         
         while (this.straightLength > targetStraight && this.segments.length > 8) {
-            // Find longest straight and convert to curve
             const straightSegments = this.segments.filter(s => s.isStraight);
             if (straightSegments.length === 0) break;
             
             straightSegments.sort((a, b) => b.length - a.length);
             const longest = straightSegments[0];
             
-            // Add midpoint with offset to create curve
             const midIndex = this.points.indexOf(longest.from) + 1;
             const midX = (longest.from.x + longest.to.x) / 2;
             const midY = (longest.from.y + longest.to.y) / 2;
             
-            // Perpendicular offset
             const dx = longest.to.x - longest.from.x;
             const dy = longest.to.y - longest.from.y;
             const len = Math.hypot(dx, dy);
@@ -115,14 +107,11 @@ class CircuitGenerator {
             };
             
             this.points.splice(midIndex, 0, newPoint);
-            
-            // Re-analyze
             this.analyzeTrack();
         }
     }
 
     smoothTrack() {
-        // Convert to smooth Bezier path
         this.pathPoints = [];
         
         for (let i = 0; i < this.points.length - 1; i++) {
@@ -131,7 +120,6 @@ class CircuitGenerator {
             const p2 = this.points[i + 1];
             const p3 = this.points[i + 2] || this.points[1];
 
-            // Catmull-Rom to Bezier conversion
             const cp1x = p1.x + (p2.x - p0.x) / 6;
             const cp1y = p1.y + (p2.y - p0.y) / 6;
             const cp2x = p2.x - (p3.x - p1.x) / 6;
@@ -162,7 +150,6 @@ class CircuitGenerator {
                 const w = 20 + Math.random() * 60;
                 const h = 20 + Math.random() * 60;
                 
-                // Check distance from track
                 const dist = this.distanceToTrack(x, y);
                 
                 if (dist > 60 && dist < 300) {
@@ -232,9 +219,201 @@ class CircuitGenerator {
     }
 }
 
+// 🎨 FUNGSI MEMBUAT MOBIL F1 (TOP VIEW)
+function createF1Car() {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('id', 'race-vehicle');
+    
+    const mainColor = '#ff0000';
+    const darkColor = '#8b0000';
+    const tireColor = '#1a1a1a';
+    const cockpitColor = '#2c3e50';
+    
+    // Body utama
+    const body = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    body.setAttribute('cx', '0');
+    body.setAttribute('cy', '0');
+    body.setAttribute('rx', '14');
+    body.setAttribute('ry', '6');
+    body.setAttribute('fill', mainColor);
+    body.setAttribute('stroke', darkColor);
+    body.setAttribute('stroke-width', '1');
+    g.appendChild(body);
+    
+    // Cockpit
+    const cockpit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    cockpit.setAttribute('cx', '-2');
+    cockpit.setAttribute('cy', '0');
+    cockpit.setAttribute('r', '3');
+    cockpit.setAttribute('fill', cockpitColor);
+    g.appendChild(cockpit);
+    
+    // Front Wing
+    const frontWing = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    frontWing.setAttribute('x', '12');
+    frontWing.setAttribute('y', '-5');
+    frontWing.setAttribute('width', '4');
+    frontWing.setAttribute('height', '10');
+    frontWing.setAttribute('fill', mainColor);
+    frontWing.setAttribute('rx', '1');
+    g.appendChild(frontWing);
+    
+    // Rear Wing
+    const rearWing = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rearWing.setAttribute('x', '-16');
+    rearWing.setAttribute('y', '-6');
+    rearWing.setAttribute('width', '3');
+    rearWing.setAttribute('height', '12');
+    rearWing.setAttribute('fill', mainColor);
+    rearWing.setAttribute('rx', '1');
+    g.appendChild(rearWing);
+    
+    // Roda Depan Kiri
+    const flWheel = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    flWheel.setAttribute('cx', '8');
+    flWheel.setAttribute('cy', '-5');
+    flWheel.setAttribute('r', '2.5');
+    flWheel.setAttribute('fill', tireColor);
+    g.appendChild(flWheel);
+    
+    // Roda Depan Kanan
+    const frWheel = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    frWheel.setAttribute('cx', '8');
+    frWheel.setAttribute('cy', '5');
+    frWheel.setAttribute('r', '2.5');
+    frWheel.setAttribute('fill', tireColor);
+    g.appendChild(frWheel);
+    
+    // Roda Belakang Kiri
+    const rlWheel = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    rlWheel.setAttribute('cx', '-8');
+    rlWheel.setAttribute('cy', '-5');
+    rlWheel.setAttribute('r', '3');
+    rlWheel.setAttribute('fill', tireColor);
+    g.appendChild(rlWheel);
+    
+    // Roda Belakang Kanan
+    const rrWheel = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    rrWheel.setAttribute('cx', '-8');
+    rrWheel.setAttribute('cy', '5');
+    rrWheel.setAttribute('r', '3');
+    rrWheel.setAttribute('fill', tireColor);
+    g.appendChild(rrWheel);
+    
+    // Halo
+    const halo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    halo.setAttribute('d', 'M 0,-4 Q 4,0 0,4');
+    halo.setAttribute('fill', 'none');
+    halo.setAttribute('stroke', '#000');
+    halo.setAttribute('stroke-width', '1');
+    g.appendChild(halo);
+    
+    // Nomor mobil
+    const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    number.setAttribute('x', '2');
+    number.setAttribute('y', '1');
+    number.setAttribute('text-anchor', 'middle');
+    number.setAttribute('fill', '#fff');
+    number.setAttribute('font-size', '4');
+    number.setAttribute('font-weight', 'bold');
+    number.textContent = '1';
+    g.appendChild(number);
+    
+    return g;
+}
+
+// 🏍️ FUNGSI MEMBUAT MOTOR GP (TOP VIEW)
+function createMotorcycle() {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('id', 'race-vehicle');
+    
+    const bodyColor = '#ff6600';
+    const tireColor = '#1a1a1a';
+    
+    // Body utama
+    const body = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    body.setAttribute('x', '-8');
+    body.setAttribute('y', '-2');
+    body.setAttribute('width', '16');
+    body.setAttribute('height', '4');
+    body.setAttribute('rx', '2');
+    body.setAttribute('fill', bodyColor);
+    g.appendChild(body);
+    
+    // Tangki
+    const tank = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    tank.setAttribute('cx', '2');
+    tank.setAttribute('cy', '0');
+    tank.setAttribute('rx', '4');
+    tank.setAttribute('ry', '2.5');
+    tank.setAttribute('fill', bodyColor);
+    tank.setAttribute('stroke', '#cc5200');
+    tank.setAttribute('stroke-width', '0.5');
+    g.appendChild(tank);
+    
+    // Roda Depan
+    const frontWheel = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    frontWheel.setAttribute('cx', '10');
+    frontWheel.setAttribute('cy', '0');
+    frontWheel.setAttribute('r', '3.5');
+    frontWheel.setAttribute('fill', 'none');
+    frontWheel.setAttribute('stroke', tireColor);
+    frontWheel.setAttribute('stroke-width', '2');
+    g.appendChild(frontWheel);
+    
+    // Roda Belakang
+    const rearWheel = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    rearWheel.setAttribute('cx', '-10');
+    rearWheel.setAttribute('cy', '0');
+    rearWheel.setAttribute('r', '3.5');
+    rearWheel.setAttribute('fill', 'none');
+    rearWheel.setAttribute('stroke', tireColor);
+    rearWheel.setAttribute('stroke-width', '2');
+    g.appendChild(rearWheel);
+    
+    // Stang
+    const handleBar = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    handleBar.setAttribute('x1', '6');
+    handleBar.setAttribute('y1', '-3');
+    handleBar.setAttribute('x2', '6');
+    handleBar.setAttribute('y2', '3');
+    handleBar.setAttribute('stroke', '#silver');
+    handleBar.setAttribute('stroke-width', '1');
+    g.appendChild(handleBar);
+    
+    // Knalpot
+    const exhaust = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    exhaust.setAttribute('x', '-12');
+    exhaust.setAttribute('y', '-1');
+    exhaust.setAttribute('width', '4');
+    exhaust.setAttribute('height', '2');
+    exhaust.setAttribute('fill', '#silver');
+    g.appendChild(exhaust);
+    
+    // Nomor
+    const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    number.setAttribute('x', '0');
+    number.setAttribute('y', '1');
+    number.setAttribute('text-anchor', 'middle');
+    number.setAttribute('fill', '#fff');
+    number.setAttribute('font-size', '3');
+    number.setAttribute('font-weight', 'bold');
+    number.textContent = '93';
+    g.appendChild(number);
+    
+    return g;
+}
+
+function setVehicleType(type) {
+    vehicleType = type;
+    if (isAnimating) {
+        stopAnimation();
+        startAnimation();
+    }
+}
+
 function generateNewCircuit() {
     const loading = document.getElementById('loading');
-    const svg = document.getElementById('circuit-svg');
     
     loading.style.display = 'block';
     loading.classList.add('generating');
@@ -288,13 +467,22 @@ function renderCircuit(circuit) {
 
     const pathData = circuit.getPathData();
 
-    // Track border (white)
+    // Simpan path element untuk animasi (hidden, hanya untuk perhitungan)
+    trackPathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    trackPathElement.setAttribute('d', pathData);
+    trackPathElement.style.display = 'none';
+    overlayLayer.appendChild(trackPathElement);
+    
+    // Hitung total panjang path
+    totalTrackLength = trackPathElement.getTotalLength();
+
+    // Track border
     const border = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     border.setAttribute('d', pathData);
     border.setAttribute('class', 'track-border');
     trackLayer.appendChild(border);
 
-    // Track surface (asphalt)
+    // Track surface
     const surface = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     surface.setAttribute('d', pathData);
     surface.setAttribute('class', 'track-surface');
@@ -312,7 +500,7 @@ function renderCircuit(circuit) {
     racingLine.setAttribute('class', 'track-racing-line');
     trackLayer.appendChild(racingLine);
 
-    // DRS Zone (longest straight or random section)
+    // DRS Zone
     if (circuit.segments.length > 0) {
         const longestStraight = circuit.segments.reduce((max, s) => 
             s.isStraight && s.length > max.length ? s : max, circuit.segments[0]);
@@ -378,7 +566,7 @@ function renderCircuit(circuit) {
         }
     });
 
-    // Interactive hover effect
+    // Interactive hover
     const hoverPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hoverPath.setAttribute('d', pathData);
     hoverPath.setAttribute('fill', 'none');
@@ -417,61 +605,95 @@ function toggleAnimation() {
     }
 }
 
+// FUNGSI BARU: Dapatkan posisi dan rotasi mulus dari SVG path
+function getSmoothVehicleTransform(distance) {
+    if (!trackPathElement || totalTrackLength === 0) {
+        return { x: 500, y: 400, angle: 0 };
+    }
+    
+    // Normalisasi distance (loop kembali ke awal jika melebihi panjang)
+    const currentDistance = distance % totalTrackLength;
+    
+    // Dapatkan posisi exact di path menggunakan SVG API
+    const point = trackPathElement.getPointAtLength(currentDistance);
+    
+    // Dapatkan posisi sedikit di depan untuk menghitung arah (tangent)
+    // Gunakan jarak kecil (2-5 pixel) untuk perhitungan rotasi yang halus
+    let lookAheadDistance = currentDistance + 3;
+    if (lookAheadDistance > totalTrackLength) {
+        lookAheadDistance = lookAheadDistance - totalTrackLength; // Loop back
+    }
+    
+    const nextPoint = trackPathElement.getPointAtLength(lookAheadDistance);
+    
+    // Hitung sudut rotasi berdasarkan arah tangent
+    const dx = nextPoint.x - point.x;
+    const dy = nextPoint.y - point.y;
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    return {
+        x: point.x,
+        y: point.y,
+        angle: angle
+    };
+}
+
 function startAnimation() {
-    if (!currentCircuit) return;
+    if (!currentCircuit || !trackPathElement) return;
     isAnimating = true;
     
     const overlayLayer = document.getElementById('overlay-layer');
     
-    // Create race car
-    raceCar = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    raceCar.setAttribute('r', '8');
-    raceCar.setAttribute('fill', '#ff6b6b');
-    raceCar.setAttribute('stroke', '#fff');
-    raceCar.setAttribute('stroke-width', '2');
-    raceCar.setAttribute('filter', 'url(#glow)');
-    overlayLayer.appendChild(raceCar);
+    // Reset distance
+    currentDistance = 0;
     
-    let progress = 0;
-    const speed = 0.002;
+    // Pilih jenis kendaraan
+    if (vehicleType === 'f1') {
+        raceVehicle = createF1Car();
+    } else {
+        raceVehicle = createMotorcycle();
+    }
     
-    function animate() {
+    overlayLayer.appendChild(raceVehicle);
+    
+    // Kecepatan konsisten: pixel per detik
+    const speed = 180; // 180 pixel per detik
+    
+    let lastTime = performance.now();
+    
+    function animate(currentTime) {
         if (!isAnimating) return;
         
-        progress += speed;
-        if (progress >= 1) progress = 0;
+        // Hitung delta time untuk animasi smooth terlepas dari FPS
+        const deltaTime = (currentTime - lastTime) / 1000; // Konversi ke detik
+        lastTime = currentTime;
         
-        const point = getPointAtProgress(currentCircuit, progress);
-        raceCar.setAttribute('cx', point.x);
-        raceCar.setAttribute('cy', point.y);
+        // Update jarak berdasarkan waktu
+        currentDistance += speed * deltaTime;
+        
+        // Dapatkan transformasi mulus dari path
+        const transform = getSmoothVehicleTransform(currentDistance);
+        
+        // Terapkan transformasi dengan rotasi yang mulus
+        // Kendaraan mengikuti arah jalan secara natural
+        raceVehicle.setAttribute('transform', 
+            `translate(${transform.x}, ${transform.y}) rotate(${transform.angle})`
+        );
         
         animationId = requestAnimationFrame(animate);
     }
     
-    animate();
+    animationId = requestAnimationFrame(animate);
 }
 
 function stopAnimation() {
     isAnimating = false;
     if (animationId) cancelAnimationFrame(animationId);
-    if (raceCar) {
-        raceCar.remove();
-        raceCar = null;
+    if (raceVehicle) {
+        raceVehicle.remove();
+        raceVehicle = null;
     }
-}
-
-function getPointAtProgress(circuit, t) {
-    const totalSegments = circuit.points.length - 1;
-    const segmentIndex = Math.floor(t * totalSegments);
-    const segmentT = (t * totalSegments) % 1;
-    
-    const p1 = circuit.points[segmentIndex];
-    const p2 = circuit.points[segmentIndex + 1] || circuit.points[0];
-    
-    return {
-        x: p1.x + (p2.x - p1.x) * segmentT,
-        y: p1.y + (p2.y - p1.y) * segmentT
-    };
+    currentDistance = 0;
 }
 
 function downloadSVG() {
@@ -490,5 +712,12 @@ function downloadSVG() {
     document.body.removeChild(link);
 }
 
-// Initialize on load
+function toggleVehicle() {
+    setVehicleType(vehicleType === 'f1' ? 'motor' : 'f1');
+    const btn = document.getElementById('vehicle-toggle-btn');
+    if (btn) {
+        btn.textContent = vehicleType === 'f1' ? '🏎️ Switch to Motorcycle' : '🏍️ Switch to F1 Car';
+    }
+}
+
 window.onload = generateNewCircuit;
