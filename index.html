@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban F1 Circuit Map Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>🏎️ Urban Circuit Generator</h1>
+    
+    <div class="controls">
+        <button onclick="generateNewCircuit()">🔄 Generate New Circuit</button>
+        <button onclick="toggleAnimation()">▶️ Toggle Race Simulation</button>
+        <button onclick="downloadSVG()">💾 Download Map</button>
+    </div>
+
+    <div class="info">
+        <div class="stat">Total Length: <span id="length">0</span>m</div>
+        <div class="stat">Corners: <span id="corners">0</span></div>
+        <div class="stat">Straight: <span id="straight-pct">0</span>%</div>
+        <div class="stat">Type: <span id="circuit-type">Street Circuit</span></div>
+    </div>
+
+    <div id="circuit-container">
+        <svg id="circuit-svg" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <pattern id="buildingPattern" patternUnits="userSpaceOnUse" width="20" height="20">
+                    <rect width="20" height="20" fill="#3d4550"/>
+                    <rect x="2" y="2" width="6" height="6" fill="#2d3436"/>
+                    <rect x="12" y="2" width="6" height="6" fill="#2d3436"/>
+                    <rect x="2" y="12" width="6" height="6" fill="#2d3436"/>
+                    <rect x="12" y="12" width="6" height="6" fill="#2d3436"/>
+                </pattern>
+                <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+            </defs>
+            
+            <g id="city-layer"></g>
+            <g id="track-layer"></g>
+            <g id="overlay-layer"></g>
+        </svg>
+        
+        <div class="tooltip" id="tooltip"></div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #dfe6e9;"></div>
+                <span>Racing Line</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e17055;"></div>
+                <span>Curbs</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #00cec9;"></div>
+                <span>DRS Zone</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #feca57;"></div>
+                <span>Direction</span>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">Generating Circuit...</div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>
