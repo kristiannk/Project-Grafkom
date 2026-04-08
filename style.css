@@ -253,6 +253,16 @@ svg:active {
     display: none;
 }
 
+button.active-spawn {
+    background: linear-gradient(45deg, #a29bfe, #6c5ce7);
+    box-shadow: 0 0 15px rgba(162, 155, 254, 0.5);
+}
+
+@keyframes spawnPulse {
+    0% { r: 10; opacity: 0.9; }
+    100% { r: 24; opacity: 0; }
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }

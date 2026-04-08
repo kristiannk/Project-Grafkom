@@ -9,6 +9,10 @@ let trackPathElement = null;
 let totalTrackLength = 0;
 let currentDistance = 0;
 
+// Variabel untuk randomize spawn
+let randomSpawnEnabled = false;
+let spawnMarkerElement = null;
+
 class CircuitGenerator {
     constructor(width, height) {
         this.width = width;
@@ -644,8 +648,12 @@ function startAnimation() {
     
     const overlayLayer = document.getElementById('overlay-layer');
     
-    // Reset distance
-    currentDistance = 0;
+    // Tentukan posisi spawn: random atau dari awal (0)
+    if (randomSpawnEnabled && totalTrackLength > 0) {
+        currentDistance = Math.random() * totalTrackLength;
+    } else {
+        currentDistance = 0;
+    }
     
     // Pilih jenis kendaraan
     if (vehicleType === 'f1') {
@@ -718,6 +726,87 @@ function toggleVehicle() {
     if (btn) {
         btn.textContent = vehicleType === 'f1' ? '🏎️ Switch to Motorcycle' : '🏍️ Switch to F1 Car';
     }
+}
+
+function toggleRandomSpawn() {
+    randomSpawnEnabled = !randomSpawnEnabled;
+    const btn = document.getElementById('spawn-toggle-btn');
+    if (btn) {
+        if (randomSpawnEnabled) {
+            btn.textContent = '🎲 Spawn: Random';
+            btn.classList.add('active-spawn');
+        } else {
+            btn.textContent = '🏁 Spawn: Start Line';
+            btn.classList.remove('active-spawn');
+        }
+    }
+    // Jika sedang animasi, restart dari posisi spawn baru
+    if (isAnimating) {
+        stopAnimation();
+        startAnimation();
+    }
+}
+
+function showRandomSpawnPreview() {
+    if (!trackPathElement || totalTrackLength === 0) return;
+
+    // Hapus marker sebelumnya jika ada
+    if (spawnMarkerElement) {
+        spawnMarkerElement.remove();
+        spawnMarkerElement = null;
+    }
+
+    const overlayLayer = document.getElementById('overlay-layer');
+    const spawnDist = Math.random() * totalTrackLength;
+    const pt = trackPathElement.getPointAtLength(spawnDist);
+
+    // Buat marker spawn (lingkaran berkedip + label)
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('id', 'spawn-marker');
+
+    const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    pulse.setAttribute('cx', pt.x);
+    pulse.setAttribute('cy', pt.y);
+    pulse.setAttribute('r', '16');
+    pulse.setAttribute('fill', 'none');
+    pulse.setAttribute('stroke', '#a29bfe');
+    pulse.setAttribute('stroke-width', '2');
+    pulse.setAttribute('opacity', '0.7');
+    pulse.style.animation = 'spawnPulse 1s ease-out infinite';
+    g.appendChild(pulse);
+
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('cx', pt.x);
+    dot.setAttribute('cy', pt.y);
+    dot.setAttribute('r', '7');
+    dot.setAttribute('fill', '#a29bfe');
+    dot.setAttribute('stroke', '#ffffff');
+    dot.setAttribute('stroke-width', '1.5');
+    g.appendChild(dot);
+
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', pt.x);
+    label.setAttribute('y', pt.y - 20);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('fill', '#a29bfe');
+    label.setAttribute('font-size', '11');
+    label.setAttribute('font-weight', 'bold');
+    label.textContent = '▶ SPAWN';
+    g.appendChild(label);
+
+    overlayLayer.appendChild(g);
+    spawnMarkerElement = g;
+
+    // Simpan posisi spawn yang dipilih agar digunakan saat start animasi
+    currentDistance = spawnDist;
+
+    // Hilangkan marker otomatis setelah 3 detik
+    setTimeout(() => {
+        if (spawnMarkerElement) {
+            spawnMarkerElement.remove();
+            spawnMarkerElement = null;
+        }
+    }, 3000);
 }
 
 window.onload = generateNewCircuit;
