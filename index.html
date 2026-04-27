@@ -12,7 +12,7 @@
     <div class="controls">
         <button onclick="generateNewCircuit()">🔄 Generate New Circuit</button>
         <button onclick="toggleAnimation()">▶️ Toggle Race Simulation</button>
-        <button onclick="downloadSVG()">💾 Download Map</button>
+        <button onclick="togglePOV()" id="pov-toggle-btn">🎥 View: 2D Top</button>
         <button onclick="toggleRandomSpawn()" id="spawn-toggle-btn">🏁 Spawn: Start Line</button>
         <button onclick="showRandomSpawnPreview()">📍 Preview Spawn</button>
     </div>
@@ -48,6 +48,18 @@
             <g id="overlay-layer"></g>
         </svg>
         
+        <div id="pov-label">2D · Top View</div>
+        <div id="orbit-label"></div>
+
+        <!-- Zoom controls -->
+        <div id="zoom-controls">
+            <button class="zoom-btn" onclick="zoomIn()">＋</button>
+            <button class="zoom-btn" onclick="resetView()" title="Reset view">⌂</button>
+            <button class="zoom-btn" onclick="zoomOut()">－</button>
+        </div>
+
+        <!-- Hint -->
+        <div id="scroll-hint">🖱 Scroll = rotate · Shift+Scroll = roll · Drag = pan · Double-click = reset</div>
         <div class="tooltip" id="tooltip"></div>
         
         <div class="legend">

@@ -704,28 +704,37 @@ function stopAnimation() {
     currentDistance = 0;
 }
 
-function downloadSVG() {
-    const svg = document.getElementById('circuit-svg');
-    const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(svg);
-    
-    source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
-    const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
-    
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "urban_circuit_map.svg";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
 function toggleVehicle() {
     setVehicleType(vehicleType === 'f1' ? 'motor' : 'f1');
     const btn = document.getElementById('vehicle-toggle-btn');
     if (btn) {
         btn.textContent = vehicleType === 'f1' ? '🏎️ Switch to Motorcycle' : '🏍️ Switch to F1 Car';
     }
+}
+
+// POV toggle state
+let is3DMode = false;
+
+function togglePOV() {
+    is3DMode = !is3DMode;
+    const container = document.getElementById('circuit-container');
+    const btn = document.getElementById('pov-toggle-btn');
+    const label = document.getElementById('pov-label');
+
+    if (is3DMode) {
+        container.classList.add('pov-3d');
+        btn.textContent = '🗺️ View: 3D';
+        btn.classList.add('active-pov');
+        label.textContent = '3D · Driver POV';
+    } else {
+        container.classList.remove('pov-3d');
+        btn.textContent = '🎥 View: 2D Top';
+        btn.classList.remove('active-pov');
+        label.textContent = '2D · Top View';
+    }
+
+    // Re-apply orbit with updated is3DMode base scale
+    if (typeof applyOrbit === 'function') applyOrbit();
 }
 
 function toggleRandomSpawn() {
@@ -808,5 +817,208 @@ function showRandomSpawnPreview() {
         }
     }, 3000);
 }
+
+// ==============================
+// ==============================
+// PAN, ORBIT (scroll rotate), BUTTON ZOOM
+// ==============================
+
+// Orbit state — global so togglePOV can call applyOrbit()
+let _orbitRotX = 0, _orbitRotY = 0, _orbitRotZ = 0;
+
+function applyOrbit() {
+    const svg = document.getElementById('circuit-svg');
+    if (!svg) return;
+    const baseScale = is3DMode ? 1.22 : 1;
+    svg.style.transition = 'none';
+    svg.style.transformOrigin = '50% 50%';
+    svg.style.transform = `rotateX(${_orbitRotX}deg) rotateY(${_orbitRotY}deg) rotateZ(${_orbitRotZ}deg) scale(${baseScale})`;
+}
+
+(function initPanOrbitZoom() {
+    let panX = 0, panY = 0;
+    let scale = 1;
+    let isPanning = false;
+    let startX = 0, startY = 0;
+    let lastPanX = 0, lastPanY = 0;
+    let lastPinchDist = null;
+
+    const MIN_SCALE = 0.3;
+    const MAX_SCALE = 6;
+    const MIN_ROT_X = -80;
+    const MAX_ROT_X = 80;
+
+    function getPanZoomGroup() {
+        return document.getElementById('pan-zoom-group');
+    }
+
+    function applyTransform() {
+        const g = getPanZoomGroup();
+        if (!g) return;
+        g.setAttribute('transform', `translate(${panX}, ${panY}) scale(${scale})`);
+    }
+
+    function clampScale(s) {
+        return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
+    }
+
+    function wrapLayersInGroup() {
+        const svg = document.getElementById('circuit-svg');
+        let g = document.getElementById('pan-zoom-group');
+        if (g) return;
+        g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('id', 'pan-zoom-group');
+        const cityLayer = document.getElementById('city-layer');
+        const trackLayer = document.getElementById('track-layer');
+        const overlayLayer = document.getElementById('overlay-layer');
+        svg.appendChild(g);
+        g.appendChild(cityLayer);
+        g.appendChild(trackLayer);
+        g.appendChild(overlayLayer);
+        applyTransform();
+    }
+
+    function updateOrbitLabel() {
+        const label = document.getElementById('orbit-label');
+        if (!label) return;
+        if (_orbitRotX === 0 && _orbitRotY === 0 && _orbitRotZ === 0) {
+            label.style.opacity = '0';
+        } else {
+            label.textContent = `\u2195 ${Math.round(_orbitRotX)}\u00b0  \u2194 ${Math.round(_orbitRotY)}\u00b0  \u21ba ${Math.round(_orbitRotZ)}\u00b0`;
+            label.style.opacity = '1';
+        }
+    }
+
+    function resetAll() {
+        panX = 0; panY = 0; scale = 1;
+        _orbitRotX = 0; _orbitRotY = 0; _orbitRotZ = 0;
+        applyTransform();
+        applyOrbit();
+        updateOrbitLabel();
+    }
+
+    // Hook generateNewCircuit
+    const _origGenerate = window.generateNewCircuit;
+    window.generateNewCircuit = function() {
+        const existing = document.getElementById('pan-zoom-group');
+        if (existing) {
+            const svg = document.getElementById('circuit-svg');
+            ['city-layer','track-layer','overlay-layer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) svg.appendChild(el);
+            });
+            existing.remove();
+        }
+        resetAll();
+        _origGenerate();
+        setTimeout(() => { wrapLayersInGroup(); resetAll(); }, 200);
+    };
+
+    // Button zoom
+    window.zoomIn  = function() { scale = clampScale(scale * 1.25); applyTransform(); };
+    window.zoomOut = function() { scale = clampScale(scale / 1.25); applyTransform(); };
+    window.resetView = function() { resetAll(); };
+
+    // Scroll → orbit
+    document.addEventListener('wheel', (e) => {
+        const container = document.getElementById('circuit-container');
+        if (!container.contains(e.target)) return;
+        e.preventDefault();
+        const s = 0.3;
+        if (e.shiftKey) {
+            _orbitRotZ += e.deltaY * s * 0.5;
+        } else {
+            _orbitRotX += e.deltaY * s;
+            _orbitRotX = Math.max(MIN_ROT_X, Math.min(MAX_ROT_X, _orbitRotX));
+            _orbitRotY += (e.deltaX || 0) * s;
+        }
+        applyOrbit();
+        updateOrbitLabel();
+    }, { passive: false });
+
+    // Mouse drag → pan
+    document.addEventListener('mousedown', (e) => {
+        const container = document.getElementById('circuit-container');
+        if (!container.contains(e.target)) return;
+        if (e.button !== 0) return;
+        isPanning = true;
+        startX = e.clientX; startY = e.clientY;
+        lastPanX = panX; lastPanY = panY;
+        container.style.cursor = 'grabbing';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        const svg = document.getElementById('circuit-svg');
+        const rect = svg.getBoundingClientRect();
+        const vb = svg.viewBox.baseVal;
+        panX = lastPanX + (e.clientX - startX) * (vb.width / rect.width);
+        panY = lastPanY + (e.clientY - startY) * (vb.height / rect.height);
+        applyTransform();
+    });
+
+    document.addEventListener('mouseup', () => {
+        isPanning = false;
+        const c = document.getElementById('circuit-container');
+        if (c) c.style.cursor = 'grab';
+    });
+
+    // Touch: 1-finger pan, 2-finger pinch zoom
+    document.addEventListener('touchstart', (e) => {
+        const container = document.getElementById('circuit-container');
+        if (!container.contains(e.target)) return;
+        if (e.touches.length === 1) {
+            isPanning = true;
+            startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+            lastPanX = panX; lastPanY = panY;
+            lastPinchDist = null;
+        } else if (e.touches.length === 2) {
+            isPanning = false;
+            lastPinchDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        const container = document.getElementById('circuit-container');
+        if (!container.contains(e.target)) return;
+        if (e.touches.length === 1 && isPanning) {
+            e.preventDefault();
+            const svg = document.getElementById('circuit-svg');
+            const rect = svg.getBoundingClientRect();
+            const vb = svg.viewBox.baseVal;
+            panX = lastPanX + (e.touches[0].clientX - startX) * (vb.width / rect.width);
+            panY = lastPanY + (e.touches[0].clientY - startY) * (vb.height / rect.height);
+            applyTransform();
+        } else if (e.touches.length === 2 && lastPinchDist !== null) {
+            e.preventDefault();
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            scale = clampScale(scale * dist / lastPinchDist);
+            lastPinchDist = dist;
+            applyTransform();
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) lastPinchDist = null;
+        if (e.touches.length === 0) isPanning = false;
+    });
+
+    // Double-click → reset
+    document.addEventListener('dblclick', (e) => {
+        const container = document.getElementById('circuit-container');
+        if (!container.contains(e.target)) return;
+        resetAll();
+    });
+
+    window.addEventListener('load', () => {
+        setTimeout(() => wrapLayersInGroup(), 300);
+    });
+})();
 
 window.onload = generateNewCircuit;
