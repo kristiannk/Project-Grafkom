@@ -1020,5 +1020,4 @@ function applyOrbit() {
         setTimeout(() => wrapLayersInGroup(), 300);
     });
 })();
-
 window.onload = generateNewCircuit;
