@@ -398,6 +398,7 @@ button.active-pov {
     50% { opacity: 0.5; }
 }
 
+
 .generating {
     animation: pulse 1.5s infinite;
 }
